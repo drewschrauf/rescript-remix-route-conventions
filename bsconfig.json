@@ -1,0 +1,22 @@
+{
+  "name": "rescript-remix",
+  "version": "0.1.0",
+  "package-specs": {
+    "module": "commonjs",
+    "in-source": true
+  },
+  "sources": [{
+    "dir" : "src",
+    "subdirs" : true
+  }, {
+    "dir": "__tests__",
+    "subdirs": true,
+    "type": "dev"
+  }],
+  "bs-dependencies": [
+    "rescript-nodejs"
+  ],
+  "bs-dev-dependencies": [
+    "@glennsl/rescript-jest"
+  ]
+}

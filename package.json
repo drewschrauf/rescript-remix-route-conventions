@@ -1,0 +1,21 @@
+{
+  "name": "rescript-remix",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "rescript build -w",
+    "test": "jest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@glennsl/rescript-jest": "^0.9.0",
+    "mock-fs": "^5.1.2"
+  },
+  "dependencies": {
+    "rescript": "^9.1.4",
+    "rescript-nodejs": "^14.2.0"
+  }
+}
