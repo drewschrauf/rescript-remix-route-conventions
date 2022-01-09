@@ -72,6 +72,17 @@ test("it should map a namespaced file into a simple route", () => {
   )
 })
 
+test("it should map a segment called \"index\" to an empty string", () => {
+  MockFs.mock({"app": {"res-routes": {"index.js": ""}}})
+
+  let routeDefiner = MockRouteDefiner.make()
+  RouteConventions.registerRoutes(routeDefiner->MockRouteDefiner.defineRoute)
+
+  expect(routeDefiner->MockRouteDefiner.routes)->toEqual(
+    Map.fromArray([("", {file: "res-routes/index.js", nested: None})]),
+  )
+})
+
 test("it should map a bracket-surrounded file into a dynamic route", () => {
   MockFs.mock({"app": {"res-routes": {"[blogId].js": ""}}})
 
@@ -83,7 +94,18 @@ test("it should map a bracket-surrounded file into a dynamic route", () => {
   )
 })
 
-test("it should map a period-delimeted file into a slash-delimted route", () => {
+test("it should map a bracket pair into a splat route", () => {
+  MockFs.mock({"app": {"res-routes": {"[].js": ""}}})
+
+  let routeDefiner = MockRouteDefiner.make()
+  RouteConventions.registerRoutes(routeDefiner->MockRouteDefiner.defineRoute)
+
+  expect(routeDefiner->MockRouteDefiner.routes)->toEqual(
+    Map.fromArray([("*", {file: "res-routes/[].js", nested: None})]),
+  )
+})
+
+test("it should map a period-delimited file into a slash-delimited route", () => {
   MockFs.mock({"app": {"res-routes": {"blog.about.js": ""}}})
 
   let routeDefiner = MockRouteDefiner.make()
@@ -91,6 +113,17 @@ test("it should map a period-delimeted file into a slash-delimted route", () => 
 
   expect(routeDefiner->MockRouteDefiner.routes)->toEqual(
     Map.fromArray([("blog/about", {file: "res-routes/blog.about.js", nested: None})]),
+  )
+})
+
+test("it should escape characters within double brackets", () => {
+  MockFs.mock({"app": {"res-routes": {"blog[[.]]rss.js": ""}}})
+
+  let routeDefiner = MockRouteDefiner.make()
+  RouteConventions.registerRoutes(routeDefiner->MockRouteDefiner.defineRoute)
+
+  expect(routeDefiner->MockRouteDefiner.routes)->toEqual(
+    Map.fromArray([("blog.rss", {file: "res-routes/blog[[.]]rss.js", nested: None})]),
   )
 })
 

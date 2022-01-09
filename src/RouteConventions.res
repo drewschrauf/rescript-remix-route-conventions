@@ -14,10 +14,34 @@ type rec routeDefinitionNode = {
 }
 and routeDefinition = Map.t<routeDefinitionNode>
 
+type segmentAccumulatorState =
+  Normal | SawOpenBracket | SawCloseBracket | InsideParameter | InsideEscape
+type segmentAccumulator = {
+  segment: string,
+  state: segmentAccumulatorState,
+}
+
 let filenameToSegment = (name: string): string => {
-  (name->Js.String2.match_(%re("/([^_]+?)$/g"))->Js.Option.getExn)[0]
-  ->Js.String2.replaceByRe(%re("/\[([^\]]+?)\]/g"), ":$1")
-  ->Js.String2.replaceByRe(%re("/\./g"), "/")
+  let segment = (name->Js.String2.split("")->Js.Array2.reduce((acc, char) =>
+      switch (char, acc.state) {
+      | ("_", Normal) => {...acc, segment: ""}
+      | (".", Normal) => {...acc, segment: acc.segment ++ "/"}
+      | ("[", Normal) => {...acc, state: SawOpenBracket}
+      | ("[", SawOpenBracket) => {...acc, state: InsideEscape}
+      | ("]", SawOpenBracket) => {segment: acc.segment ++ "*", state: Normal}
+      | ("]", InsideEscape) => {...acc, state: SawCloseBracket}
+      | ("]", SawCloseBracket) => {...acc, state: Normal}
+      | ("]", InsideParameter) => {...acc, state: Normal}
+      | (_, SawOpenBracket) => {segment: acc.segment ++ ":" ++ char, state: InsideParameter}
+      | (_, _) => {...acc, segment: acc.segment ++ char}
+      }
+    , {segment: "", state: Normal})).segment
+
+  if segment == "index" {
+    ""
+  } else {
+    segment
+  }
 }
 
 let rec buildRoutesForDir = (path: string) => {
@@ -49,7 +73,7 @@ let rec registerBuiltRoutes = (
   ~segments=[],
   (),
 ) => {
-  routes->Map.forEach((segment, definition) => {
+  routes->Map.forEach((segment, definition) =>
     switch (definition.file, definition.nested) {
     | (Some(file), None) =>
       (defineRoute->toDefineChildRoute)(.
@@ -66,7 +90,7 @@ let rec registerBuiltRoutes = (
       )
     | (None, None) => Js.Exn.raiseError("Invariant error")
     }
-  })
+  )
 }
 
 let registerRoutes = (defineRoute: defineRoute) => {
