@@ -50,109 +50,95 @@ afterEach(() => {
   MockFs.restore()
 })
 
-test("it should map a non-namespaced file into a simple route", () => {
-  MockFs.mock({"app": {"res-routes": {"blog.js": ""}}})
+describe("directory structure to route and view hierarchy", () => {
+  test("it should map a file into a simple route", () => {
+    MockFs.mock({"app": {"res-routes": {"blog.js": ""}}})
 
-  let routeDefiner = MockRouteDefiner.make()
-  RouteConventions.registerRoutes(routeDefiner->MockRouteDefiner.defineRoute)
+    let routeDefiner = MockRouteDefiner.make()
+    RouteConventions.registerRoutes(routeDefiner->MockRouteDefiner.defineRoute)
 
-  expect(routeDefiner->MockRouteDefiner.routes)->toEqual(
-    Map.fromArray([("blog", {file: "res-routes/blog.js", nested: None})]),
-  )
+    expect(routeDefiner->MockRouteDefiner.routes)->toEqual(
+      Map.fromArray([("blog", {file: "res-routes/blog.js", nested: None})]),
+    )
+  })
+
+  test("it should map a deep file into a simple route", () => {
+    MockFs.mock({"app": {"res-routes": {"blog": {"blog.js": ""}}}})
+
+    let routeDefiner = MockRouteDefiner.make()
+    RouteConventions.registerRoutes(routeDefiner->MockRouteDefiner.defineRoute)
+
+    expect(routeDefiner->MockRouteDefiner.routes)->toEqual(
+      Map.fromArray([("blog/blog", {file: "res-routes/blog/blog.js", nested: None})]),
+    )
+  })
+
+  test("it should nest routes when a folder and file exist with the same name", () => {
+    MockFs.mock({"app": {"res-routes": {"blog.js": "", "blog": {"blog.js": ""}}}})
+
+    let routeDefiner = MockRouteDefiner.make()
+    RouteConventions.registerRoutes(routeDefiner->MockRouteDefiner.defineRoute)
+
+    expect(routeDefiner->MockRouteDefiner.routes)->toEqual(
+      Map.fromArray([
+        (
+          "blog",
+          {
+            file: "res-routes/blog.js",
+            nested: Some(
+              Map.fromArray([("blog", {file: "res-routes/blog/blog.js", nested: None})]),
+            ),
+          },
+        ),
+      ]),
+    )
+  })
+
+  test("it should ignore non-js files", () => {
+    MockFs.mock({"app": {"res-routes": {"blog.js": "", "ignoreme.res": ""}}})
+
+    let routeDefiner = MockRouteDefiner.make()
+    RouteConventions.registerRoutes(routeDefiner->MockRouteDefiner.defineRoute)
+
+    expect(routeDefiner->MockRouteDefiner.routes)->toEqual(
+      Map.fromArray([("blog", {file: "res-routes/blog.js", nested: None})]),
+    )
+  })
 })
 
-test("it should map a namespaced file into a simple route", () => {
-  MockFs.mock({"app": {"res-routes": {"namespaced_blog.js": ""}}})
+describe("filename to route mappings", () =>
+  [
+    ("blog", "blog"),
+    ("namespaced_blog", "blog"),
+    ("index", ""),
+    ("namespaced_index", ""),
+    ("[]", "*"),
+    ("namespaced_[]", "*"),
+    ("[blogId]", ":blogId"),
+    ("namespaced_[blogId]", ":blogId"),
+    ("blog[[.]]rss", "blog.rss"),
+    ("blog[[_]]page", "blog_page"),
+    ("blog[[[]]page", "blog[page"),
+    ("blog]page", "blog]page"),
+    ("namespaced_blog[[.]]rss", "blog.rss"),
+    ("namespaced_[[_]]_blog", "blog"),
+    ("blog.about", "blog/about"),
+    ("namespaced_blog.about", "blog/about"),
+    ("lots_of_namespaces_blog", "blog"),
+  ]->Js.Array2.forEach(((input, output)) =>
+    test(`"${input}" -> "${output}"`, () => {
+      MockFs.mockWithDict(
+        Js.Dict.fromArray([
+          ("app", Js.Dict.fromArray([("res-routes", Js.Dict.fromArray([(`${input}.js`, "")]))])),
+        ]),
+      )
 
-  let routeDefiner = MockRouteDefiner.make()
-  RouteConventions.registerRoutes(routeDefiner->MockRouteDefiner.defineRoute)
+      let routeDefiner = MockRouteDefiner.make()
+      RouteConventions.registerRoutes(routeDefiner->MockRouteDefiner.defineRoute)
 
-  expect(routeDefiner->MockRouteDefiner.routes)->toEqual(
-    Map.fromArray([("blog", {file: "res-routes/namespaced_blog.js", nested: None})]),
+      expect(routeDefiner->MockRouteDefiner.routes)->toEqual(
+        Map.fromArray([(output, {file: `res-routes/${input}.js`, nested: None})]),
+      )
+    })
   )
-})
-
-test("it should map a segment called \"index\" to an empty string", () => {
-  MockFs.mock({"app": {"res-routes": {"index.js": ""}}})
-
-  let routeDefiner = MockRouteDefiner.make()
-  RouteConventions.registerRoutes(routeDefiner->MockRouteDefiner.defineRoute)
-
-  expect(routeDefiner->MockRouteDefiner.routes)->toEqual(
-    Map.fromArray([("", {file: "res-routes/index.js", nested: None})]),
-  )
-})
-
-test("it should map a bracket-surrounded file into a dynamic route", () => {
-  MockFs.mock({"app": {"res-routes": {"[blogId].js": ""}}})
-
-  let routeDefiner = MockRouteDefiner.make()
-  RouteConventions.registerRoutes(routeDefiner->MockRouteDefiner.defineRoute)
-
-  expect(routeDefiner->MockRouteDefiner.routes)->toEqual(
-    Map.fromArray([(":blogId", {file: "res-routes/[blogId].js", nested: None})]),
-  )
-})
-
-test("it should map a bracket pair into a splat route", () => {
-  MockFs.mock({"app": {"res-routes": {"[].js": ""}}})
-
-  let routeDefiner = MockRouteDefiner.make()
-  RouteConventions.registerRoutes(routeDefiner->MockRouteDefiner.defineRoute)
-
-  expect(routeDefiner->MockRouteDefiner.routes)->toEqual(
-    Map.fromArray([("*", {file: "res-routes/[].js", nested: None})]),
-  )
-})
-
-test("it should map a period-delimited file into a slash-delimited route", () => {
-  MockFs.mock({"app": {"res-routes": {"blog.about.js": ""}}})
-
-  let routeDefiner = MockRouteDefiner.make()
-  RouteConventions.registerRoutes(routeDefiner->MockRouteDefiner.defineRoute)
-
-  expect(routeDefiner->MockRouteDefiner.routes)->toEqual(
-    Map.fromArray([("blog/about", {file: "res-routes/blog.about.js", nested: None})]),
-  )
-})
-
-test("it should escape characters within double brackets", () => {
-  MockFs.mock({"app": {"res-routes": {"blog[[.]]rss.js": ""}}})
-
-  let routeDefiner = MockRouteDefiner.make()
-  RouteConventions.registerRoutes(routeDefiner->MockRouteDefiner.defineRoute)
-
-  expect(routeDefiner->MockRouteDefiner.routes)->toEqual(
-    Map.fromArray([("blog.rss", {file: "res-routes/blog[[.]]rss.js", nested: None})]),
-  )
-})
-
-test("it should map a deep non-namespaced file into a simple route", () => {
-  MockFs.mock({"app": {"res-routes": {"blog": {"blog.js": ""}}}})
-
-  let routeDefiner = MockRouteDefiner.make()
-  RouteConventions.registerRoutes(routeDefiner->MockRouteDefiner.defineRoute)
-
-  expect(routeDefiner->MockRouteDefiner.routes)->toEqual(
-    Map.fromArray([("blog/blog", {file: "res-routes/blog/blog.js", nested: None})]),
-  )
-})
-
-test("it should nest non-namespace routes when a folder and file exist with the same name", () => {
-  MockFs.mock({"app": {"res-routes": {"blog.js": "", "blog": {"blog.js": ""}}}})
-
-  let routeDefiner = MockRouteDefiner.make()
-  RouteConventions.registerRoutes(routeDefiner->MockRouteDefiner.defineRoute)
-
-  expect(routeDefiner->MockRouteDefiner.routes)->toEqual(
-    Map.fromArray([
-      (
-        "blog",
-        {
-          file: "res-routes/blog.js",
-          nested: Some(Map.fromArray([("blog", {file: "res-routes/blog/blog.js", nested: None})])),
-        },
-      ),
-    ]),
-  )
-})
+)

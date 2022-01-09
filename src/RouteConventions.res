@@ -52,16 +52,18 @@ let rec buildRoutesForDir = (path: string) => {
     let fileDef = file->NodeJs.Path.parse
     let isDirectory = ["app", path, file]->NodeJs.Path.join->statSync->NodeJs.Fs.Stats.isDirectory
 
-    let segment = (isDirectory ? fileDef.base : fileDef.name)->filenameToSegment
-    let mapping = routes->Map.getWithDefault(segment, {file: None, nested: None})
+    if isDirectory || fileDef.ext === ".js" {
+      let segment = (isDirectory ? fileDef.base : fileDef.name)->filenameToSegment
+      let mapping = routes->Map.getWithDefault(segment, {file: None, nested: None})
 
-    if isDirectory {
-      mapping.nested = Some(buildRoutesForDir(NodeJs.Path.join([path, segment])))
-    } else {
-      mapping.file = Some(NodeJs.Path.join([path, file]))
+      if isDirectory {
+        mapping.nested = Some(buildRoutesForDir(NodeJs.Path.join([path, segment])))
+      } else {
+        mapping.file = Some(NodeJs.Path.join([path, file]))
+      }
+
+      routes->Map.set(segment, mapping)
     }
-
-    routes->Map.set(segment, mapping)
   })
 
   routes

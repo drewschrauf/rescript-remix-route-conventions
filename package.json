@@ -17,5 +17,8 @@
   "dependencies": {
     "rescript": "^9.1.4",
     "rescript-nodejs": "^14.2.0"
+  },
+  "jest": {
+    "testMatch": ["**/*_spec.js"]
   }
 }
